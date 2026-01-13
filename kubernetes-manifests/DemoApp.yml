@@ -1,0 +1,13 @@
+apiVersion: apps.example.com/v1alpha1
+kind: DemoApp
+metadata:
+  name: demo
+spec:
+  image: nginx:1.25
+  replicas: 2
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 80
+    initialDelaySeconds: 15
+    periodSeconds: 5
