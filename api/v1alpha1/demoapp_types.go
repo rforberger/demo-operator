@@ -111,6 +111,8 @@ type ContainerSpec struct {
 
 	// +optional
 	ReadinessProbe *ReadinessProbeSpec `json:"readinessProbe,omitempty"`
+
+	Resources *ResourceSpec `json:"resource",omitempty"`
 }
 
 // DemoAppSpec defines the desired state of DemoApp
