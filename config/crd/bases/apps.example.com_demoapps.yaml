@@ -75,7 +75,7 @@ spec:
                                 format: int32
                                 type: integer
                             type: object
-                          resource:
+                          resources:
                             properties:
                               limits:
                                 description: Maximale Ressourcen
@@ -105,7 +105,7 @@ spec:
                         required:
                         - image
                         - name
-                        - resource
+                        - resources
                         type: object
                       type: array
                     name:
