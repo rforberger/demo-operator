@@ -39,6 +39,50 @@ type DemoAppReconciler struct {
 	Scheme *runtime.Scheme
 }
 
+func buildReadinessProbe(p *ReadinessProbeSpec) *corev1.Probe {
+	if p == nil {
+		return nil
+	}
+
+	probe := &corev1.Probe{
+		InitialDelaySeconds: p.InitialDelaySeconds,
+		PeriodSeconds:       p.PeriodSeconds,
+	}
+
+	// HTTP GET Probe
+	if p.Path != "" && p.Port > 0 {
+		probe.ProbeHandler = corev1.ProbeHandler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: p.Path,
+				Port: intstr.FromInt(int(p.Port)),
+			},
+		}
+	}
+
+	return probe
+}
+
+func buildContainers(specs []ContainerSpec) []corev1.Container {
+	containers := make([]corev1.Container, 0, len(specs))
+
+	for _, c := range specs {
+		container := corev1.Container{
+			Name:  c.Name,
+			Image: c.Image,
+		}
+
+		// ReadinessProbe (optional)
+		if c.ReadinessProbe != nil {
+			container.ReadinessProbe = buildReadinessProbe(c.ReadinessProbe)
+		}
+
+		containers = append(containers, container)
+	}
+
+	return containers
+}
+
+
 // +kubebuilder:rbac:groups=apps.example.com,resources=demoapps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps.example.com,resources=demoapps/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=apps.example.com,resources=demoapps/finalizers,verbs=update
@@ -62,7 +106,7 @@ func (r *DemoAppReconciler) Reconcile(
 
 	logger := logf.FromContext(ctx)
 
-	// 1. Custom Resource laden
+    // 1. Custom Resource laden
 	var demo v1alpha1.DemoApp
 	if err := r.Get(ctx, req.NamespacedName, &demo); err != nil {
 		if apierrors.IsNotFound(err) {
@@ -71,99 +115,40 @@ func (r *DemoAppReconciler) Reconcile(
 		return ctrl.Result{}, err
 	}
 
-	// 2. Deployment-Name festlegen
-	deployName := demo.Name + "-deployment"
+    for _, dep := range demo.Spec.Deployments {
 
-	// 3. Deployment suchen
-	var deploy appsv1.Deployment
-	err := r.Get(ctx, types.NamespacedName{
-		Name:      deployName,
-		Namespace: demo.Namespace,
-	}, &deploy)
+        deploymentName := fmt.Sprintf("%s-%s", demo.Name, dep.Name)
 
-	// 3.1 ReadinessProbe setzen
-    var readinessProbe *corev1.Probe
-
-    if demo.Spec.ReadinessProbe != nil && demo.Spec.ReadinessProbe.HTTPGet != nil {
-        rp := demo.Spec.ReadinessProbe
-
-        readinessProbe = &corev1.Probe{
-            ProbeHandler: corev1.ProbeHandler{
-                HTTPGet: &corev1.HTTPGetAction{
-                    Path: rp.HTTPGet.Path,
-                    Port: intstr.FromInt(int(rp.HTTPGet.Port)),
-                    Scheme: func() corev1.URIScheme {
-                        if rp.HTTPGet.Scheme != nil {
-                            return *rp.HTTPGet.Scheme
-                        }
-                        return corev1.URISchemeHTTP
-                    }(),
+        deployment := appsv1.Deployment{
+            ObjectMeta: metav1.ObjectMeta{
+                Name:      deploymentName,
+                Namespace: demo.Namespace,
+            },
+            Spec: appsv1.DeploymentSpec{
+                Replicas: dep.Replicas,
+                Selector: &metav1.LabelSelector{
+                    MatchLabels: map[string]string{
+                        "app": deploymentName,
+                    },
+                },
+                Template: corev1.PodTemplateSpec{
+                    ObjectMeta: metav1.ObjectMeta{
+                        Labels: map[string]string{
+                            "app": deploymentName,
+                        },
+                    },
+                    Spec: corev1.PodSpec{
+                        Containers: buildContainers(dep.Containers),
+                    },
                 },
             },
         }
 
-        if rp.InitialDelaySeconds != nil {
-            readinessProbe.InitialDelaySeconds = *rp.InitialDelaySeconds
-        }
-        if rp.PeriodSeconds != nil {
-            readinessProbe.PeriodSeconds = *rp.PeriodSeconds
-        }
+        // OwnerReference setzen!
+        ctrl.SetControllerReference(&demo, &deployment, r.Scheme)
+
+        // Create / Update
     }
-
-	// 4. Deployment existiert nicht → erstellen
-	if apierrors.IsNotFound(err) {
-		deploy = appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      deployName,
-				Namespace: demo.Namespace,
-			},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: demo.Spec.Replicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": demo.Name,
-					},
-				},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"app": demo.Name,
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "app",
-								Image: demo.Spec.Image,
-								Ports: []corev1.ContainerPort{
-									{ContainerPort: 80},
-								},
-                                ReadinessProbe: readinessProbe,
-							},
-						},
-					},
-				},
-			},
-		}
-
-		// OwnerReference setzen (SEHR wichtig!)
-		if err := ctrl.SetControllerReference(&demo, &deploy, r.Scheme); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		logger.Info("Creating Deployment", "name", deployName)
-		return ctrl.Result{}, r.Create(ctx, &deploy)
-	}
-
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// 5. Status aktualisieren
-	demo.Status.AvailableReplicas = deploy.Status.AvailableReplicas
-	if err := r.Status().Update(ctx, &demo); err != nil {
-		logger.Error(err, "unable to update status")
-	}
 
 	return ctrl.Result{}, nil
 }

@@ -24,6 +24,15 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type DeploymentSpec struct {
+	Name       string
+	Replicas   *int32
+	Strategy   *appsv1.DeploymentStrategy
+	Resources  *corev1.ResourceRequirements
+	Containers []ContainerSpec
+}
+
+
 type ReadinessProbeSpec struct {
 	// +optional
 	HTTPGet *HTTPGetProbeSpec `json:"httpGet,omitempty"`
@@ -43,25 +52,26 @@ type HTTPGetProbeSpec struct {
 	Scheme *corev1.URIScheme `json:"scheme,omitempty"`
 }
 
+type ContainerSpec struct {
+	Name string `json:"name"`
+	Image string `json:"image"`
+
+	// +optional
+	ReadinessProbe *ReadinessProbeSpec `json:"readinessProbe,omitempty"`
+}
+
 // DemoAppSpec defines the desired state of DemoApp
 type DemoAppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 	// The following markers will use OpenAPI v3 schema to validate the value
 	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
-
-	// foo is an example field of DemoApp. Edit demoapp_types.go to remove/update
-	// +optional
-	Foo *string `json:"foo,omitempty"`
-
-	// Image für den Pod
-	Image string `json:"image"`
-
-	// Anzahl Replikas
-	Replicas *int32 `json:"replicas"`
-
+    // foo is an example field of DemoApp. Edit demoapp_types.go to remove/update
     // +optional
-    ReadinessProbe *ReadinessProbeSpec `json:"readinessProbe,omitempty"`
+    Foo *string `json:"foo,omitempty"`
+
+	// Liste der Deployments
+    Deployments []DeploymentSpec `json:"deployments"`
 }
 
 // DemoAppStatus defines the observed state of DemoApp.
