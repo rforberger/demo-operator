@@ -112,6 +112,7 @@ type ContainerSpec struct {
 	// +optional
 	ReadinessProbe *ReadinessProbeSpec `json:"readinessProbe,omitempty"`
 
+    // +optional
 	Resources *ResourceSpec `json:"resources",omitempty"`
 }
 
