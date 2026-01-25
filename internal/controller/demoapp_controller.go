@@ -15,6 +15,9 @@ import (
 
 	demov1alpha1 "github.com/rforberger/demo-operator/api/v1alpha1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // DemoAppReconciler reconciles a DemoApp object
@@ -59,6 +62,28 @@ func (r *DemoAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		logger.Info("Deployment created", "deployment", d.Name)
 	}
+
+    // Gateway API
+    var gw gatewayv1.Gateway
+    err := r.Get(ctx,
+        client.ObjectKey{
+            Name:      demoApp.Name + "-gateway",
+            Namespace: demoApp.Namespace,
+        },
+        &gw,
+    )
+
+    if apierrors.IsNotFound(err) {
+        gw = *r.desiredGateway(demoApp)
+
+        if err := ctrl.SetControllerReference(demoApp, &gw, r.Scheme); err != nil {
+            return ctrl.Result{}, err
+        }
+
+        if err := r.Create(ctx, &gw); err != nil {
+            return ctrl.Result{}, err
+        }
+    }
 
 	return ctrl.Result{}, nil
 }
