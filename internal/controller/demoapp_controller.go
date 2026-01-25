@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	demov1alpha1 "github.com/rforberger/demo-operator/api/v1alpha1"
-
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
@@ -22,6 +21,25 @@ import (
 type DemoAppReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+}
+
+func (r *DemoAppReconciler) desiredGateway(app *demov1alpha1.DemoApp) *gatewayv1.Gateway {
+    return &gatewayv1.Gateway{
+        ObjectMeta: metav1.ObjectMeta{
+            Name:      app.Name + "-gateway",
+            Namespace: app.Namespace,
+        },
+        Spec: gatewayv1.GatewaySpec{
+            GatewayClassName: gatewayv1.ObjectName("nginx"),
+            Listeners: []gatewayv1.Listener{
+                {
+                    Name:     "http",
+                    Port:     80,
+                    Protocol: gatewayv1.HTTPProtocolType,
+                },
+            },
+        },
+    }
 }
 
 func (r *DemoAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
