@@ -73,9 +73,9 @@ func (r *DemoAppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
     )
 
     if apierrors.IsNotFound(err) {
-        gw = *r.desiredGateway(demoApp)
+        gw = *r.desiredGateway(&demoApp)
 
-        if err := ctrl.SetControllerReference(demoApp, &gw, r.Scheme); err != nil {
+        if err := ctrl.SetControllerReference(&demoApp, &gw, r.Scheme); err != nil {
             return ctrl.Result{}, err
         }
 
