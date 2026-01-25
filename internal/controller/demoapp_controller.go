@@ -16,7 +16,6 @@ import (
 	demov1alpha1 "github.com/rforberger/demo-operator/api/v1alpha1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
