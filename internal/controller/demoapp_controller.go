@@ -26,7 +26,10 @@ type DemoAppReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=apps.example.com,resources=demoapps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps.example.com,resources=demoapps/status,verbs=get;update;patch
 func (r *DemoAppReconciler) desiredGateway(app *demov1alpha1.DemoApp) *gatewayv1.Gateway {
     return &gatewayv1.Gateway{
         ObjectMeta: metav1.ObjectMeta{
